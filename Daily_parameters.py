@@ -30,7 +30,7 @@ def zarr_dict2group(zg: zarr.Group, name: str, dict: dict, overwrite: bool = Tru
 # https://kp.gfz.de/en/data#c222
 # https://lasp.colorado.edu/lisird/data/noaa_radio_flux
 # https://omniweb.gsfc.nasa.gov/form/dx1.html
-F107 = 100
+F107 = 70
 
 # Create horizontal grid
 # CM01 18.788 N 98.985 E
@@ -38,14 +38,16 @@ lon_res = 0.01
 lat_res = 0.01
 lon_center = 98.985
 lat_center = 18.788
-offset = 10
-alon_2d, alat_2d = np.mgrid[lon_center - offset*lon_res:lon_center + offset*lon_res:lon_res, lat_center - offset*lat_res:lat_center + offset*lat_res:lat_res]
+offset = 2
+# alon_2d = np.array([[lon_center]])
+# alat_2d = np.array([[lat_center]])
+alon_2d, alat_2d = np.mgrid[lon_center - offset*lon_res:lon_center + (offset+0.5)*lon_res:lon_res, lat_center - offset*lat_res:lat_center + (offset+0.5)*lat_res:lat_res]
 alon = np.reshape(alon_2d, alon_2d.size)
 alat = np.reshape(alat_2d, alat_2d.size)
 
 # Time grid: Universal Time from 0 to 24 in 15-minute steps
-hr_res = 1
-aUT = np.arange(0, 24, hr_res)
+UT_res   = 1
+aUT = np.arange(0, 24, UT_res)
 
 # Height grid: 90 km to 700 km in 1 km steps
 alt_res = 1
@@ -65,7 +67,14 @@ coeff_dir = None          # Use default coefficient path
 # year = 1997
 # month = 1
 # day = 1
-year, month, day = [int(x) for x in sys.argv[1].split("-")]
+# year, month, day = [int(x) for x in sys.argv[1].split("-")]
+
+from datetime import datetime
+now = datetime.now()
+year = now.year      # int
+month = now.month    # int
+day = now.day
+
 # ----------------------------------------
 # Run PyIRI (Spherical Harmonics version)
 # ----------------------------------------
@@ -94,4 +103,27 @@ zarr_dict2group(z_root, 'sun', sun)
 zarr_dict2group(z_root, 'mag', mag)
 EDP_save = z_root.create_array('EDP', shape = EDP.shape, dtype = EDP.dtype, overwrite=True, compressors=compressor)
 EDP_save[:] = EDP
+
+# save lon, lat ,alt, UT grid
+grp = z_root.create_group('grid', overwrite=True)
+for key, val in zip(('alon_2d', 'alat_2d', 'aalt', 'aUT'), (alon_2d, alat_2d, aalt, aUT)):
+    arr_save = grp.create_array(key, shape = val.shape, dtype = val.dtype, overwrite=True, compressors=compressor)
+    arr_save[:] = val
+
+#test reading
+# alon_2d, alat_2d, aalt, aUT = [np.array(z_root[f'grid/{key}']) for key in ['alon_2d', 'alat_2d', 'aalt', 'aUT']]
+
+grp = z_root.create_group('resolution', overwrite=True)
+for key, val in zip(('lon_res', 'lat_res', 'alt_res', 'UT_res'), (lon_res, lat_res, alt_res, UT_res)):
+    arr_save = grp.create_array(key, shape = (), dtype = type(val), overwrite=True, compressors=compressor)
+    arr_save[...] = val
+
+# save PyIRI model parameters
+grp = z_root.create_group('model', overwrite=True)
+for key, val in zip(('foF2_coeff', 'hmF2_model', 'coord'), (foF2_coeff, hmF2_model, coord)):
+    arr_save = grp.create_array(key, shape = (), dtype=str, overwrite=True, compressors=compressor)
+    arr_save[...] = val
+grp.create_array('F107', shape = (), dtype = 'f8', overwrite=True, compressors=compressor)
+grp['F107'][...] = F107
+
 # print(f'Saved daily data to {save_as}')

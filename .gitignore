@@ -1,6 +1,7 @@
 *.png
 .DS_store
 .build
+daily_parameters/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -152,4 +153,4 @@ cython_debug/
 #  more nuclear option (not recommended) you can uncomment the following to
 #  ignore the entire idea folder.
 #.idea/
-figure/PyIRI_sh_B1.png
+figure/
